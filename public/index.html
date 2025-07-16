@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeless Party Rentals - Employee Panel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Timeless Party Rentals</h1>
+            <h2>Upcoming Orders (Next 10 Days)</h2>
+        </header>
+        
+        <div class="filters">
+            <div class="date-range">
+                <label for="startDate">Start Date:</label>
+                <input type="date" id="startDate" value="">
+                <label for="endDate">End Date:</label>
+                <input type="date" id="endDate" value="">
+                <button id="filterButton">Filter</button>
+            </div>
+        </div>
+
+        <div class="orders-container">
+            <div class="loading">Loading orders...</div>
+            <div id="ordersList" class="orders-list">
+                <!-- Orders will be populated here -->
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
