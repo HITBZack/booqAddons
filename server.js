@@ -14,7 +14,7 @@ app.use(express.static('public'));
 
 // Booqable API configuration
 const BOOQABLE_API_KEY = process.env.BOOQABLE_API_KEY;
-const BOOQABLE_API_URL = 'https://timeless-events-party-rentals-ltd.booqable.com/api';
+const BOOQABLE_API_URL = process.env.BOOQABLE_API_URL;
 
 // Get upcoming orders for the next 10 days
 app.get('/api/orders', async (req, res) => {

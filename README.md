@@ -49,11 +49,11 @@ Copy
 Edit
 npm install
 npm start
-(Instructions may vary depending on your stack — update accordingly)
 
 🛠️ Configuration
 env
 BOOQABLE_API_KEY=your_api_key_here
+BOOQABLE_API_URL=https://{your_company_slug_here}.booqable.com/api
 PORT=3000
 
 💡 Roadmap
@@ -71,5 +71,5 @@ Throw all of these goodies in one web app, with the majority of tools built into
 
  Map-view filtering support, and delivery ease.
 
-🔗 Related Projects
--- throw these in lata
+🔗 References:
+https://developers.booqable.com/#orders-update-an-order
