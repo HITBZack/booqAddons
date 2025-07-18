@@ -19,11 +19,11 @@ app.use('/item_photos', express.static('item_photos'));
 const BOOQABLE_API_KEY = process.env.BOOQABLE_API_KEY;
 const BOOQABLE_API_URL = process.env.BOOQABLE_API_URL;
 
-// Get upcoming orders for the next 10 days
+// Get upcoming orders for the next X days
 app.get('/api/orders', async (req, res) => {
   try {
     const startDate = moment().toISOString();
-    const endDate = moment().add(10, 'days').toISOString();
+    const endDate = moment().add(7, 'days').toISOString();
 
     console.log('Using Booqable API Key:', BOOQABLE_API_KEY);
 

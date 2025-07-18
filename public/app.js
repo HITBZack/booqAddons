@@ -1,4 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Always render Unpick All button at top of orders list
+    let unpickBtn = document.getElementById('unpickAllBtn');
+    const ordersList = document.getElementById('ordersList');
+    if (!unpickBtn) {
+        unpickBtn = document.createElement('button');
+        unpickBtn.id = 'unpickAllBtn';
+        unpickBtn.textContent = 'Unpick All';
+        unpickBtn.style = 'margin-bottom:16px;background:#d1fae5;color:#065f46;border:none;padding:8px 20px;border-radius:7px;font-size:1rem;cursor:pointer;box-shadow:0 2px 6px #0001;transition:background 0.2s;';
+        unpickBtn.onmouseover = () => unpickBtn.style.background = '#a7f3d0';
+        unpickBtn.onmouseout = () => unpickBtn.style.background = '#d1fae5';
+        unpickBtn.onclick = () => {
+            // Remove all picked states
+            Object.keys(localStorage).forEach(k => { if (k.startsWith('picked_')) localStorage.removeItem(k); });
+            // Uncheck all checkboxes and remove highlight
+            document.querySelectorAll('.pick-checkbox').forEach(cb => { cb.checked = false; });
+            document.querySelectorAll('.date-item').forEach(item => { item.style.background = ''; });
+        };
+        ordersList.parentElement.insertBefore(unpickBtn, ordersList);
+    }
+
     // Load item photo map
     let itemPhotoMap = {};
     // Wait for itemPhotoMap to load before rendering anything
@@ -25,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.innerHTML = '<img id="modalImg" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 4px 32px #0007">';
     document.body.appendChild(modal);
     modal.onclick = () => { modal.style.display = 'none'; };
-    function showModalImg(src) {
+    // Make showModalImg globally accessible for inline HTML event
+    window.showModalImg = function(src) {
         modal.querySelector('#modalImg').src = src;
         modal.style.display = 'flex';
     }
@@ -33,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
     const filterButton = document.getElementById('filterButton');
-    const ordersList = document.getElementById('ordersList');
     const loadingElement = document.querySelector('.loading');
     // Add filter mode controls
     const filterModesDiv = document.createElement('div');
@@ -71,13 +91,23 @@ document.addEventListener('DOMContentLoaded', () => {
     unsortButton.style.margin = '10px 0';
     unsortButton.style.display = 'none';
     ordersList.parentNode.insertBefore(combineButton, ordersList);
+
+    // Add spacing between Unpick All and Combine All Days buttons
+    let combineBtn = document.getElementById('combineButton');
+    if (unpickBtn && combineBtn && !document.getElementById('buttonSpacer')) {
+        const spacer = document.createElement('div');
+        spacer.id = 'buttonSpacer';
+        spacer.style.display = 'inline-block';
+        spacer.style.width = '16px';
+        unpickBtn.parentNode.insertBefore(spacer, combineBtn);
+    }
     ordersList.parentNode.insertBefore(unsortButton, ordersList);
     let lastItemCounts = null;
 
-    // Set default date range to next 10 days
+    // Set default date range to next 7 days
     const today = new Date();
     const nextTenDays = new Date();
-    nextTenDays.setDate(today.getDate() + 10);
+    nextTenDays.setDate(today.getDate() + 7);
     
     startDateInput.value = today.toISOString().split('T')[0];
     endDateInput.value = nextTenDays.toISOString().split('T')[0];
@@ -138,14 +168,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let imgHtml = '';
                 let imgSrc = item_id && itemPhotoMap[item_id] ? itemPhotoMap[item_id] : null;
                 if (imgSrc) {
-                    imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
+                    imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;min-width:60px;min-height:60px;max-width:60px;max-height:60px;object-fit:cover;object-position:center center;background:#fff;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
                 }
                 // Checkbox for picked state
                 const pickedKey = `picked_${item_id}`;
                 const isPicked = localStorage.getItem(pickedKey) === '1';
                 const checkbox = `<input type="checkbox" class="pick-checkbox" data-itemid="${item_id}" ${isPicked ? 'checked' : ''} title="Mark as Picked" style="width:22px;height:22px;min-width:22px;min-height:22px;max-width:22px;max-height:22px;vertical-align:middle;accent-color:#6ee7b7;margin-right:8px;">`;
                 dateSection.innerHTML += `
-                    <div class="date-item" data-itemid="${item_id}" style="display:flex;align-items:center;gap:12px;${isPicked ? 'background:#d1fae5;' : ''} border-radius:8px;transition:background 0.2s;">
+                    <div class="date-item" data-itemid="${item_id}" style="display:flex;align-items:center;gap:12px;${isPicked ? 'background:#d1fae5;' : ''} border-radius:8px;transition:background 0.2s;padding-left:8px;padding-right:8px;">
                         ${checkbox}
                         ${imgHtml}
                         <div class="date-label">${itemName}</div>
@@ -156,6 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add checkbox event listeners after render
             setTimeout(() => {
                 dateSection.querySelectorAll('.pick-checkbox').forEach(cb => {
+                    cb.addEventListener('click', function(e) {
+                        e.stopPropagation(); // Prevent container click handler from firing
+                    });
                     cb.addEventListener('change', function(e) {
                         const id = this.getAttribute('data-itemid');
                         const parent = this.closest('.date-item');
@@ -171,8 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Make container clickable to toggle checkbox
                 dateSection.querySelectorAll('.date-item').forEach(item => {
                     item.addEventListener('click', function(e) {
-                        // Don't toggle if clicking image or quantity
-                        if (e.target.classList.contains('item-thumb') || e.target.classList.contains('date-quantity')) return;
+                        // Don't toggle if clicking image, quantity, or checkbox itself
+                        if (e.target.classList.contains('item-thumb') || e.target.classList.contains('date-quantity') || e.target.classList.contains('pick-checkbox')) return;
                         const cb = this.querySelector('.pick-checkbox');
                         if (cb) {
                             cb.checked = !cb.checked;
@@ -199,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         // Display as a single combined card
         // Add Unpick All button if not present
+        // Always render Unpick All button once on page load
         let unpickBtn = document.getElementById('unpickAllBtn');
         if (!unpickBtn) {
             unpickBtn = document.createElement('button');
@@ -214,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.pick-checkbox').forEach(cb => { cb.checked = false; });
                 document.querySelectorAll('.date-item').forEach(item => { item.style.background = ''; });
             };
+            // Insert at top of ordersList container
             ordersList.parentElement.insertBefore(unpickBtn, ordersList);
         }
         ordersList.innerHTML = '';
@@ -239,10 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let imgHtml = '';
             let imgSrc = item_id && itemPhotoMap[item_id] ? itemPhotoMap[item_id] : null;
             if (imgSrc) {
-                imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
+                imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;min-width:60px;min-height:60px;max-width:60px;max-height:60px;object-fit:cover;object-position:center center;background:#fff;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
             }
             combinedSection.innerHTML += `
-                <div class="date-item" data-itemid="${item_id}" style="display:flex;align-items:center;gap:12px;${isPicked ? 'background:#d1fae5;' : ''} border-radius:8px;transition:background 0.2s;">
+                <div class="date-item" data-itemid="${item_id}" style="display:flex;align-items:center;gap:12px;${isPicked ? 'background:#d1fae5;' : ''} border-radius:8px;transition:background 0.2s;padding-left:8px;padding-right:8px;">
                     ${checkbox}
                     ${imgHtml}
                     <div class="date-label">${itemName}</div>
@@ -253,6 +288,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add checkbox event listeners after render
         setTimeout(() => {
             combinedSection.querySelectorAll('.pick-checkbox').forEach(cb => {
+                cb.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent container click handler from firing
+                });
                 cb.addEventListener('change', function() {
                     const id = this.getAttribute('data-itemid');
                     const parent = this.closest('.date-item');
@@ -262,6 +300,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         localStorage.removeItem(`picked_${id}`);
                         parent.style.background = '';
+                    }
+                });
+            });
+            // Make container clickable to toggle checkbox
+            combinedSection.querySelectorAll('.date-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('item-thumb') || e.target.classList.contains('date-quantity') || e.target.classList.contains('pick-checkbox')) return;
+                    const cb = this.querySelector('.pick-checkbox');
+                    if (cb) {
+                        cb.checked = !cb.checked;
+                        cb.dispatchEvent(new Event('change'));
                     }
                 });
             });
