@@ -140,14 +140,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (imgSrc) {
                     imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
                 }
+                // Checkbox for picked state
+                const pickedKey = `picked_${item_id}`;
+                const isPicked = localStorage.getItem(pickedKey) === '1';
+                const checkbox = `<input type="checkbox" class="pick-checkbox" data-itemid="${item_id}" ${isPicked ? 'checked' : ''} title="Mark as Picked" style="width:22px;height:22px;min-width:22px;min-height:22px;max-width:22px;max-height:22px;vertical-align:middle;accent-color:#6ee7b7;margin-right:8px;">`;
                 dateSection.innerHTML += `
-                    <div class="date-item" style="display:flex;align-items:center;gap:12px;">
+                    <div class="date-item" data-itemid="${item_id}" style="display:flex;align-items:center;gap:12px;${isPicked ? 'background:#d1fae5;' : ''} border-radius:8px;transition:background 0.2s;">
+                        ${checkbox}
                         ${imgHtml}
                         <div class="date-label">${itemName}</div>
                         <div class="date-quantity">${quantity}</div>
                     </div>
                 `;
             });
+            // Add checkbox event listeners after render
+            setTimeout(() => {
+                dateSection.querySelectorAll('.pick-checkbox').forEach(cb => {
+                    cb.addEventListener('change', function(e) {
+                        const id = this.getAttribute('data-itemid');
+                        const parent = this.closest('.date-item');
+                        if (this.checked) {
+                            localStorage.setItem(`picked_${id}`, '1');
+                            parent.style.background = '#d1fae5';
+                        } else {
+                            localStorage.removeItem(`picked_${id}`);
+                            parent.style.background = '';
+                        }
+                    });
+                });
+                // Make container clickable to toggle checkbox
+                dateSection.querySelectorAll('.date-item').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        // Don't toggle if clicking image or quantity
+                        if (e.target.classList.contains('item-thumb') || e.target.classList.contains('date-quantity')) return;
+                        const cb = this.querySelector('.pick-checkbox');
+                        if (cb) {
+                            cb.checked = !cb.checked;
+                            cb.dispatchEvent(new Event('change'));
+                        }
+                    });
+                });
+            }, 0);
             ordersList.appendChild(dateSection);
         });
     }
@@ -165,6 +198,24 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         // Display as a single combined card
+        // Add Unpick All button if not present
+        let unpickBtn = document.getElementById('unpickAllBtn');
+        if (!unpickBtn) {
+            unpickBtn = document.createElement('button');
+            unpickBtn.id = 'unpickAllBtn';
+            unpickBtn.textContent = 'Unpick All';
+            unpickBtn.style = 'margin-bottom:16px;background:#d1fae5;color:#065f46;border:none;padding:8px 20px;border-radius:7px;font-size:1rem;cursor:pointer;box-shadow:0 2px 6px #0001;transition:background 0.2s;';
+            unpickBtn.onmouseover = () => unpickBtn.style.background = '#a7f3d0';
+            unpickBtn.onmouseout = () => unpickBtn.style.background = '#d1fae5';
+            unpickBtn.onclick = () => {
+                // Remove all picked states
+                Object.keys(localStorage).forEach(k => { if (k.startsWith('picked_')) localStorage.removeItem(k); });
+                // Uncheck all checkboxes and remove highlight
+                document.querySelectorAll('.pick-checkbox').forEach(cb => { cb.checked = false; });
+                document.querySelectorAll('.date-item').forEach(item => { item.style.background = ''; });
+            };
+            ordersList.parentElement.insertBefore(unpickBtn, ordersList);
+        }
         ordersList.innerHTML = '';
         const combinedSection = document.createElement('div');
         combinedSection.className = 'order-card';
@@ -181,19 +232,40 @@ document.addEventListener('DOMContentLoaded', () => {
             if (filterTerms.some(term => lowerName.includes(term.toLowerCase()))) return;
             const quantity = itemObj.quantity;
             const item_id = itemObj.item_id;
+            // Checkbox for picked state
+            const pickedKey = `picked_${item_id}`;
+            const isPicked = localStorage.getItem(pickedKey) === '1';
+            const checkbox = `<input type="checkbox" class="pick-checkbox" data-itemid="${item_id}" ${isPicked ? 'checked' : ''} title="Mark as Picked" style="width:22px;height:22px;min-width:22px;min-height:22px;max-width:22px;max-height:22px;vertical-align:middle;accent-color:#6ee7b7;margin-right:8px;">`;
             let imgHtml = '';
             let imgSrc = item_id && itemPhotoMap[item_id] ? itemPhotoMap[item_id] : null;
             if (imgSrc) {
                 imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
             }
             combinedSection.innerHTML += `
-                <div class="date-item" style="display:flex;align-items:center;gap:12px;">
+                <div class="date-item" data-itemid="${item_id}" style="display:flex;align-items:center;gap:12px;${isPicked ? 'background:#d1fae5;' : ''} border-radius:8px;transition:background 0.2s;">
+                    ${checkbox}
                     ${imgHtml}
                     <div class="date-label">${itemName}</div>
                     <div class="date-quantity">${quantity}</div>
                 </div>
             `;
         });
+        // Add checkbox event listeners after render
+        setTimeout(() => {
+            combinedSection.querySelectorAll('.pick-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const id = this.getAttribute('data-itemid');
+                    const parent = this.closest('.date-item');
+                    if (this.checked) {
+                        localStorage.setItem(`picked_${id}`, '1');
+                        parent.style.background = '#d1fae5';
+                    } else {
+                        localStorage.removeItem(`picked_${id}`);
+                        parent.style.background = '';
+                    }
+                });
+            });
+        }, 0);
         ordersList.appendChild(combinedSection);
         combineButton.style.display = 'none';
         unsortButton.style.display = '';
