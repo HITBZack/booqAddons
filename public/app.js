@@ -148,7 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const sortMode = document.querySelector('input[name="filterMode"]:checked').value;
-        Object.entries(itemCounts).forEach(([date, items]) => {
+        // Sort dates ascending (soonest first)
+    Object.entries(itemCounts)
+        .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB))
+        .forEach(([date, items]) => {
             const dateSection = document.createElement('div');
             dateSection.className = 'order-card';
             dateSection.innerHTML = `<div class="order-header"><div class="order-name">${new Date(date).toLocaleDateString()}</div></div>`;
