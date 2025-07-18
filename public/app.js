@@ -1,4 +1,35 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Load item photo map
+    let itemPhotoMap = {};
+    // Wait for itemPhotoMap to load before rendering anything
+    let itemPhotoMapLoaded = false;
+    fetch('item_photos_map.json').then(r => r.json()).then(map => {
+        itemPhotoMap = map;
+        itemPhotoMapLoaded = true;
+        // Only now fetch orders
+        fetchOrders();
+    });
+
+    // Modal for full image view
+    const modal = document.createElement('div');
+    modal.style.display = 'none';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.background = 'rgba(0,0,0,0.85)';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '10000';
+    modal.innerHTML = '<img id="modalImg" style="max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 4px 32px #0007">';
+    document.body.appendChild(modal);
+    modal.onclick = () => { modal.style.display = 'none'; };
+    function showModalImg(src) {
+        modal.querySelector('#modalImg').src = src;
+        modal.style.display = 'flex';
+    }
+
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
     const filterButton = document.getElementById('filterButton');
@@ -27,18 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const spacer = document.createElement('div');
     spacer.style.width = '10px';
     filterModesDiv.appendChild(spacer);
-
-    // Radio: Sort by Category (prep only)
-    const sortCatRadio = document.createElement('input');
-    sortCatRadio.type = 'radio';
-    sortCatRadio.name = 'filterMode';
-    sortCatRadio.value = 'category';
-    sortCatRadio.id = 'sortCatRadio';
-    filterModesDiv.appendChild(sortCatRadio);
-    const sortCatLabel = document.createElement('label');
-    sortCatLabel.htmlFor = 'sortCatRadio';
-    sortCatLabel.textContent = 'Sort by Category (coming soon)';
-    filterModesDiv.appendChild(sortCatLabel);
 
     // Add Combine All Days Button
     const combineButton = document.createElement('button');
@@ -105,13 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
             dateSection.innerHTML = `<div class="order-header"><div class="order-name">${new Date(date).toLocaleDateString()}</div></div>`;
             let sortedItems = Object.entries(items);
             if (sortMode === 'quantity') {
-                sortedItems = sortedItems.sort((a, b) => b[1] - a[1]);
-            } else if (sortMode === 'category') {
-                // TODO: Implement category sorting logic here
+                sortedItems = sortedItems.sort((a, b) => b[1].quantity - a[1].quantity);
             }
-            sortedItems.forEach(([itemName, quantity]) => {
+            sortedItems.forEach(([itemName, itemObj]) => {
+                const quantity = itemObj.quantity;
+                const item_id = itemObj.item_id;
+                let imgHtml = '';
+                let imgSrc = item_id && itemPhotoMap[item_id] ? itemPhotoMap[item_id] : null;
+                if (imgSrc) {
+                    imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
+                }
                 dateSection.innerHTML += `
-                    <div class="date-item">
+                    <div class="date-item" style="display:flex;align-items:center;gap:12px;">
+                        ${imgHtml}
                         <div class="date-label">${itemName}</div>
                         <div class="date-quantity">${quantity}</div>
                     </div>
@@ -126,9 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!lastItemCounts) return;
         const combined = {};
         Object.values(lastItemCounts).forEach(items => {
-            Object.entries(items).forEach(([itemName, quantity]) => {
-                if (!combined[itemName]) combined[itemName] = 0;
-                combined[itemName] += quantity;
+            Object.entries(items).forEach(([itemName, itemObj]) => {
+                if (!combined[itemName]) combined[itemName] = { quantity: 0, item_id: itemObj.item_id };
+                combined[itemName].quantity += itemObj.quantity;
+                // Always use the latest item_id seen
+                combined[itemName].item_id = itemObj.item_id;
             });
         });
         // Display as a single combined card
@@ -139,13 +166,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let combinedEntries = Object.entries(combined);
         const sortMode = document.querySelector('input[name="filterMode"]:checked').value;
         if (sortMode === 'quantity') {
-            combinedEntries = combinedEntries.sort((a, b) => b[1] - a[1]);
-        } else if (sortMode === 'category') {
-            // TODO: Implement category sorting logic here
+            combinedEntries = combinedEntries.sort((a, b) => b[1].quantity - a[1].quantity);
         }
-        combinedEntries.forEach(([itemName, quantity]) => {
+        combinedEntries.forEach(([itemName, itemObj]) => {
+            const quantity = itemObj.quantity;
+            const item_id = itemObj.item_id;
+            let imgHtml = '';
+            let imgSrc = item_id && itemPhotoMap[item_id] ? itemPhotoMap[item_id] : null;
+            if (imgSrc) {
+                imgHtml = `<img src="${imgSrc}" class="item-thumb" style="width:60px;height:60px;object-fit:cover;border-radius:8px;box-shadow:0 2px 8px #0002;cursor:pointer;margin-right:10px;vertical-align:middle;" title="Click to enlarge" onclick="event.stopPropagation();window.showModalImg && window.showModalImg('${imgSrc}');">`;
+            }
             combinedSection.innerHTML += `
-                <div class="date-item">
+                <div class="date-item" style="display:flex;align-items:center;gap:12px;">
+                    ${imgHtml}
                     <div class="date-label">${itemName}</div>
                     <div class="date-quantity">${quantity}</div>
                 </div>
@@ -164,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Re-render on filter mode change
-    [sortQtyRadio, sortCatRadio].forEach(radio => radio.addEventListener('change', () => {
+    [sortQtyRadio].forEach(radio => radio.addEventListener('change', () => {
         if (unsortButton.style.display === 'none') {
             // Per-day mode
             displayAggregatedItems(lastItemCounts);

@@ -11,6 +11,9 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+// Serve static item images
+app.use('/item_photos', express.static('item_photos'));
+
 
 // Booqable API configuration
 const BOOQABLE_API_KEY = process.env.BOOQABLE_API_KEY;
@@ -129,10 +132,20 @@ app.get('/api/orders', async (req, res) => {
         const lineAttrs = line.attributes;
         const itemName = lineAttrs.title;
         const quantity = lineAttrs.quantity;
+        // Extract item_id from relationships if available
+        let item_id = null;
+        if (line.relationships && line.relationships.item && line.relationships.item.data) {
+          item_id = line.relationships.item.data.id;
+        }
         if (!itemName || typeof quantity !== 'number') continue;
         if (!itemCounts[orderDate]) itemCounts[orderDate] = {};
-        if (!itemCounts[orderDate][itemName]) itemCounts[orderDate][itemName] = 0;
-        itemCounts[orderDate][itemName] += quantity;
+        if (!itemCounts[orderDate][itemName]) {
+          itemCounts[orderDate][itemName] = { quantity: 0, item_id };
+        }
+        itemCounts[orderDate][itemName].quantity += quantity;
+        // Always update item_id to the latest found (in case of duplicates)
+        itemCounts[orderDate][itemName].item_id = item_id;
+
       }
     }
     //console.log('Aggregated itemCounts:', JSON.stringify(itemCounts, null, 2));
