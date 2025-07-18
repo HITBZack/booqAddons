@@ -126,6 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sortMode === 'quantity') {
                 sortedItems = sortedItems.sort((a, b) => b[1].quantity - a[1].quantity);
             }
+            // Filter unwanted items
+            const filterTerms = ["E-TRANSFER", "PAID BY", "DELIVERY", "Address", "Payment", "Vendor Discount"];
+            sortedItems = sortedItems.filter(([itemName, itemObj]) => {
+                const lowerName = itemName.toLowerCase();
+                return !filterTerms.some(term => lowerName.includes(term.toLowerCase()));
+            });
             sortedItems.forEach(([itemName, itemObj]) => {
                 const quantity = itemObj.quantity;
                 const item_id = itemObj.item_id;
@@ -168,7 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sortMode === 'quantity') {
             combinedEntries = combinedEntries.sort((a, b) => b[1].quantity - a[1].quantity);
         }
+        // Filter unwanted items
+        const filterTerms = ["E-TRANSFER", "PAID BY", "DELIVERY", "Address", "Payment", "Vendor Discount"];
         combinedEntries.forEach(([itemName, itemObj]) => {
+            const lowerName = itemName.toLowerCase();
+            if (filterTerms.some(term => lowerName.includes(term.toLowerCase()))) return;
             const quantity = itemObj.quantity;
             const item_id = itemObj.item_id;
             let imgHtml = '';
