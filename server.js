@@ -2,7 +2,7 @@ const env = require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-const moment = require('moment');
+const moment = require('moment-timezone');
 const fs = require('fs');
 
 const app = express();
@@ -113,10 +113,21 @@ app.get('/api/orders', async (req, res) => {
     //fs.writeFileSync('booqable_full_orders.json', JSON.stringify(fullOrders, null, 2));
 
     // Aggregate item counts by date and item name using relationships/lines and included
+    // New structure: { [date]: [ { orderId, orderName, starts_at, stops_at, items: { itemName: { quantity, item_id } } }, ... ] }
     const itemCounts = {};
-    for (const order of fullOrders) {
+    // Only include orders whose starts_at is within the filter range (America/Vancouver)
+    const filteredOrders = fullOrders.filter(order => {
       const attrs = order.data.attributes || {};
-      const orderDate = attrs.starts_at ? require('moment')(attrs.starts_at).format('YYYY-MM-DD') : null;
+      if (!attrs.starts_at) return false;
+      const orderStart = moment(attrs.starts_at).tz('America/Vancouver');
+      const filterStart = moment(startDate).tz('America/Vancouver');
+      const filterEnd = moment(endDate).tz('America/Vancouver');
+      return orderStart.isSameOrAfter(filterStart) && orderStart.isSameOrBefore(filterEnd);
+    });
+
+    for (const order of filteredOrders) {
+      const attrs = order.data.attributes || {};
+      const orderDate = attrs.starts_at ? moment(attrs.starts_at).format('YYYY-MM-DD') : null;
       if (!orderDate || !order.data.relationships || !order.data.relationships.lines || !Array.isArray(order.data.relationships.lines.data)) continue;
       // Build lookup tables for included lines and products
       const included = order.included || [];
@@ -126,6 +137,7 @@ app.get('/api/orders', async (req, res) => {
         if (inc.type === 'lines') linesById[inc.id] = inc;
         if (inc.type === 'products') productsById[inc.id] = inc;
       }
+      const items = {};
       for (const lineRef of order.data.relationships.lines.data) {
         const line = linesById[lineRef.id];
         if (!line || !line.attributes) continue;
@@ -138,15 +150,22 @@ app.get('/api/orders', async (req, res) => {
           item_id = line.relationships.item.data.id;
         }
         if (!itemName || typeof quantity !== 'number') continue;
-        if (!itemCounts[orderDate]) itemCounts[orderDate] = {};
-        if (!itemCounts[orderDate][itemName]) {
-          itemCounts[orderDate][itemName] = { quantity: 0, item_id };
+        if (!items[itemName]) {
+          items[itemName] = { quantity: 0, item_id };
         }
-        itemCounts[orderDate][itemName].quantity += quantity;
+        items[itemName].quantity += quantity;
         // Always update item_id to the latest found (in case of duplicates)
-        itemCounts[orderDate][itemName].item_id = item_id;
-
+        items[itemName].item_id = item_id;
       }
+      // Add this order to the date's array
+      if (!itemCounts[orderDate]) itemCounts[orderDate] = [];
+      itemCounts[orderDate].push({
+        orderId: order.data.id,
+        orderName: attrs.name || attrs.reference || attrs.display_name || order.data.id,
+        starts_at: attrs.starts_at,
+        stops_at: attrs.stops_at,
+        items
+      });
     }
     //console.log('Aggregated itemCounts:', JSON.stringify(itemCounts, null, 2));
 
